@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CareZone2</title>
+<style>
+  :root{
+    --bg:#0a0a0b;
+    --panel:#141416;
+    --stroke:#26262b;
+    --text:#f2f2f4;
+    --muted:#9a9aa2;
+    --accent:#ffd23f;      /* shutter/warm camera accent */
+    --rec:#ff3b30;
+    --ok:#34c759;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 50% -10%, #1a1a1f 0%, var(--bg) 60%);
+    color:var(--text);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    min-height:100%;padding:24px 16px;
+  }
+  .wrap{width:440px;max-width:100%}
+
+  /* ---------- setup screen ---------- */
+  #setup{
+    background:var(--panel);
+    border:1px solid var(--stroke);
+    border-radius:18px;
+    padding:22px;
+  }
+  .warn{
+    background:#7a0d0d;
+    border:2px solid #ff3b30;
+    color:#fff;
+    border-radius:12px;
+    padding:16px 18px;
+    font-weight:800;
+    font-size:20px;
+    letter-spacing:.2px;
+    text-align:center;
+    text-transform:uppercase;
+  }
+  .q{margin:18px 2px 8px;color:var(--muted);font-size:14px}
+  #pw{
+    width:100%;
+    background:#0e0e10;
+    border:1px solid var(--stroke);
+    color:var(--text);
+    border-radius:12px;
+    padding:14px 14px;
+    font-size:16px;
+    outline:none;
+  }
+  #pw:focus{border-color:var(--accent)}
+  #okBtn{
+    margin-top:14px;width:100%;
+    background:var(--accent);color:#111;
+    border:none;border-radius:12px;
+    padding:14px;font-weight:800;font-size:16px;cursor:pointer;
+  }
+  #okBtn:disabled{opacity:.6;cursor:default}
+  #setupStatus{margin-top:12px;color:var(--muted);font-size:13px;min-height:18px;text-align:center}
+
+  /* ---------- app screen ---------- */
+  #app{display:none}
+  #cvWrap{position:relative;width:100%;max-width:440px;margin:0 auto}
+  #cv{
+    display:block;width:100%;height:auto;aspect-ratio:440/780;
+    border-radius:22px;border:1px solid var(--stroke);
+    background:#000;touch-action:none;
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+  }
+  /* Real, focusable input overlaying the canvas preview so mobile soft
+     keyboards work. Text is drawn on the canvas, so this stays invisible. */
+  #textInput{
+    position:absolute; left:2.27%; top:7.95%; width:95.45%; height:76.92%;
+    margin:0; padding:16px; border:none; outline:none; resize:none;
+    background:transparent; color:transparent; caret-color:transparent;
+    font-size:16px; /* >=16px prevents iOS zoom-on-focus */
+    -webkit-user-select:text; overflow:hidden; display:none; z-index:2;
+  }
+  #result{
+    display:none;margin-top:14px;background:var(--panel);
+    border:1px solid var(--stroke);border-radius:14px;padding:14px;
+  }
+  #result h3{margin:0 0 8px;font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+  #mt{color:var(--accent);font-weight:700}
+  #cipher{
+    width:100%;height:120px;resize:vertical;margin-top:8px;
+    background:#0e0e10;border:1px solid var(--stroke);color:var(--text);
+    border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+    word-break:break-all;
+  }
+  #copyBtn{
+    margin-top:10px;background:var(--ok);color:#062b12;border:none;
+    border-radius:10px;padding:11px 14px;font-weight:800;cursor:pointer;font-size:14px;
+  }
+  #copyBtn.copied{background:#1f8f4a;color:#fff}
+  .hint{margin-top:10px;color:var(--muted);font-size:12px}
+  /* Visually hidden but present for assistive tech (and still focusable). */
+  .sr-only{
+    position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
+  .sr-only button:focus{
+    position:static;width:auto;height:auto;clip:auto;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- SETUP -->
+  <div id="setup">
+    <div class="warn" id="warnBox" role="alert">This is not secure yet</div>
+    <div class="q" id="qLabel">As your password, what is your favourite cat's name?</div>
+    <input id="pw" type="text" placeholder="Larry" autocomplete="off" spellcheck="false"
+           aria-label="As your password, what is your favourite cat's name?">
+    <button id="okBtn">OK</button>
+    <div id="setupStatus"></div>
+  </div>
+
+  <!-- APP -->
+  <div id="app">
+    <div id="cvWrap">
+      <canvas id="cv" width="440" height="780" aria-hidden="true"></canvas>
+      <textarea id="textInput" autocomplete="off" autocapitalize="sentences"
+                spellcheck="false" aria-label="Note text"></textarea>
+    </div>
+
+    <!-- Accessible parallel controls: the canvas UI is drawn, so assistive
+         tech is driven through these real buttons and this live region. -->
+    <div id="a11y" class="sr-only">
+      <h1>CareZone camera</h1>
+      <div id="a11yTabs" role="group" aria-label="Capture mode"></div>
+      <div id="a11yActions" role="group" aria-label="Actions"></div>
+    </div>
+    <div id="a11yStatus" class="sr-only" role="status" aria-live="polite"></div>
+
+    <!-- Encrypted output (not a camera control; lives outside the canvas UI) -->
+    <div id="result" role="status" aria-live="polite">
+      <h3>Encrypted</h3>
+      <textarea id="cipher" class="sr-only" readonly tabindex="-1" aria-label="Encrypted payload"></textarea>
+      <button id="copyBtn">Copy to clipboard</button>
+    </div>
+  </div>
+
+  <!-- hidden form fields -->
+  <input type="hidden" id="field1">
+  <input type="hidden" id="field2">
+</div>
+
+<!-- TweetNaCl: tiny pure-JS Curve25519 "box". A 32-byte value can BE the
+     secret key, so the keypair is derived deterministically from the cat's
+     name — something Web Crypto can't do (it can't seed keygen). ~9KB, no WASM. -->
+<script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"
+        integrity="sha384-LMUiUHpaYNGZFzWFRjsADnCSqae1Mk5llcUOHOLDhCxkyF2cdsWAueTZAzV+swW/"
+        crossorigin="anonymous"></script>
+<script>
+/* ============================================================
+   CareZone2 — single file (ENCRYPTOR)
+   - Setup: cat's name -> SHA-256 -> Argon2id (32 bytes) -> Curve25519
+            SECRET key. Store ONLY the derived PUBLIC key in the cookie.
+   - App:   canvas camera UI (TEXT / PHOTO / VIDEO / MIC)
+   - Done:  NaCl box, sealed to the public key, per-message ephemeral key
+            -> base64(ephPubKey):base64(nonce):base64(ciphertext)
+   This app can encrypt but CANNOT decrypt. A separate tool re-derives the
+   SECRET key from the same cat's name to decrypt.
+   Everything is in memory. No storage / uploads / downloads.
+   ============================================================ */
+
+const COOKIE = 'CAREZONE2_PUBLIC_KEY';   // holds the Curve25519 PUBLIC key (encrypt-only)
+const ARGON_CDN = 'https://cdn.jsdelivr.net/npm/argon2-browser@1.18.0/dist/argon2-bundled.min.js';
+const ARGON_SRI = 'sha384-XOR3aNvHciLPIf6r+2glkrmbBbLmIJ1EChMXjw8eBKBf8gE0rDq1TyUNuRdorOqi';
+
+/* ---------- tiny helpers ---------- */
+function getCookie(name){
+  const m = document.cookie.match(new RegExp('(?:^|; )'+name+'=([^;]*)'));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+function setCookie(name,value,days){
+  document.cookie = name+'='+encodeURIComponent(value)+
+    '; max-age='+(days*24*3600)+'; path=/; SameSite=Lax';
+}
+function bufToHex(buf){
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+// chunked base64 so large video buffers don't blow the call stack
+function abToB64(buf){
+  const bytes = new Uint8Array(buf);
+  let out = '';
+  const CH = 0x8000;
+  for(let i=0;i<bytes.length;i+=CH){
+    out += String.fromCharCode.apply(null, bytes.subarray(i, i+CH));
+  }
+  return btoa(out);
+}
+function utf8ToB64(str){
+  return abToB64(new TextEncoder().encode(str));
+}
+function b64ToU8(b64){
+  const bin = atob(b64);
+  const u = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i);
+  return u;
+}
+function loadScript(src, integrity){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=src;
+    if(integrity){ s.integrity=integrity; s.crossOrigin='anonymous'; }
+    s.onload=res; s.onerror=()=>rej(new Error('Failed to load '+src));
+    document.head.appendChild(s);
+  });
+}
+
+/* ==================================================================
+   SETUP  ·  derive an asymmetric keypair from the cat's name
+   cat's name -> SHA-256 -> Argon2id (32 bytes) -> Curve25519 SECRET key.
+   We store ONLY the derived PUBLIC key in the cookie. This app can seal
+   messages to it but can NEVER open them. Decryption happens in a separate
+   tool that re-derives the SECRET key from the same cat's name.
+   ================================================================== */
+const setupEl   = document.getElementById('setup');
+const appEl     = document.getElementById('app');
+const pwEl      = document.getElementById('pw');
+const okBtn     = document.getElementById('okBtn');
+const statusEl  = document.getElementById('setupStatus');
+
+// Local calendar date as YYYYMMDD (used in the salt, so the keypair is tied
+// to the day it was derived). A decryptor must reproduce this exact date.
+function localYMD(d){
+  d = d || new Date();
+  const p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;
+}
+
+async function deriveSeed(pw){
+  // SHA-256 the input string, then stretch with Argon2id.
+  // Salt = base salt + local YYYYMMDD, so the same name yields a different
+  // keypair on different local dates (deterministic within a given date).
+  const shaBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  const shaHex = bufToHex(shaBuf);
+  if(typeof argon2 === 'undefined') await loadScript(ARGON_CDN, ARGON_SRI);
+  const res = await argon2.hash({
+    pass: shaHex,
+    salt: 'CAREZONE2SALT01' + localYMD(),
+    time: 32,           // iterations
+    mem: 16 * 1024,     // 16 MB in KiB
+    hashLen: 32,        // 32-byte output
+    parallelism: 1,
+    type: argon2.ArgonType.Argon2id
+  });
+  return res.hash;      // Uint8Array(32)
+}
+
+async function runSetup(){
+  okBtn.disabled = true;
+  const pw = (pwEl.value && pwEl.value.trim()) ? pwEl.value : 'Larry';
+  try{
+    statusEl.textContent = 'Deriving key (SHA-256 → Argon2id)…';
+    if(typeof nacl === 'undefined'){
+      throw new Error('crypto library not loaded — check your connection or CDN access');
+    }
+    const seed = await deriveSeed(pw);
+    // The 32-byte seed IS the Curve25519 secret key; derive its public key.
+    const kp = nacl.box.keyPair.fromSecretKey(seed);
+    setCookie(COOKIE, abToB64(kp.publicKey), 30);   // PUBLIC key only
+    kp.secretKey.fill(0); seed.fill(0);             // wipe secret material
+    statusEl.textContent = 'Public key saved.';
+    startApp();
+  }catch(err){
+    okBtn.disabled = false;
+    statusEl.textContent = 'Setup failed: ' + (err && err.message ? err.message : err);
+    console.error(err);
+  }
+}
+okBtn.addEventListener('click', runSetup);
+pwEl.addEventListener('keydown', e=>{ if(e.key==='Enter') runSetup(); });
+
+/* ==================================================================
+   APP (canvas camera UI)
+   ================================================================== */
+let cv, ctx, W=440, H=780;
+let textInput = null;              // invisible textarea backing TEXT mode
+let sealed = false;                // true after Done -> shows encrypted state
+let finalizing = false;            // brief post-STOP state while blob is read
+let mode = 'text';                 // default mode
+let stream = null;                 // active MediaStream
+let video = null;                  // <video> element for previews
+let recorder = null, chunks = [];  // MediaRecorder + chunks (memory)
+let recording = false;
+let captured = null;               // { b64, mime }
+let textBuf = '';                  // TEXT mode buffer
+let hitRects = [];                 // rebuilt each frame for hit-testing
+let appStarted = false;
+let facing = 'user';               // 'user' (selfie) or 'environment' (rear)
+
+const resultEl   = document.getElementById('result');
+const cipherEl   = document.getElementById('cipher');
+const copyBtn    = document.getElementById('copyBtn');
+const a11yTabs   = document.getElementById('a11yTabs');
+const a11yActions= document.getElementById('a11yActions');
+const a11yStatus = document.getElementById('a11yStatus');
+const field1     = document.getElementById('field1');
+const field2     = document.getElementById('field2');
+
+const MODES = ['TEXT','PHOTO','VIDEO','MIC'];
+
+function startApp(){
+  if(appStarted) return;
+  appStarted = true;
+  setupEl.style.display = 'none';
+  appEl.style.display = 'block';
+
+  cv = document.getElementById('cv');
+  ctx = cv.getContext('2d');
+  textInput = document.getElementById('textInput');
+
+  video = document.createElement('video');
+  video.playsInline = true; video.muted = true; video.autoplay = true;
+
+  cv.addEventListener('click', onCanvasClick);
+  // Text comes from a real (invisible) textarea so mobile keyboards, paste
+  // and IME all work; we just mirror its value and draw it on the canvas.
+  textInput.addEventListener('input', ()=>{ textBuf = textInput.value; });
+
+  copyBtn.addEventListener('click', async ()=>{
+    try{
+      await navigator.clipboard.writeText(cipherEl.value);
+      copyBtn.textContent = 'Copied!'; copyBtn.classList.add('copied');
+      setTimeout(()=>{ copyBtn.textContent='Copy to clipboard'; copyBtn.classList.remove('copied'); },1400);
+    }catch(e){
+      cipherEl.select(); document.execCommand && document.execCommand('copy');
+    }
+  });
+
+  buildA11yTabs();
+  setMode('text');
+  requestAnimationFrame(draw);
+}
+
+/* ---------- accessibility mirror ----------
+   The visible UI is drawn on the canvas (hidden from assistive tech). These
+   real buttons + live region give screen-reader users an equivalent path;
+   each button routes into the same handleHit() the canvas taps use. */
+const A11Y_TABS = [['text','Text'],['photo','Photo'],['video','Video'],['mic','Mic']];
+function buildA11yTabs(){
+  a11yTabs.innerHTML='';
+  A11Y_TABS.forEach(([id,label])=>{
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=label+' mode'; b.dataset.tab=id;
+    b.addEventListener('click', ()=>handleHit('tab:'+id));
+    a11yTabs.appendChild(b);
+  });
+}
+function currentActions(){
+  if(sealed) return [['new','New capture']];
+  if(mode==='text') return textBuf.trim()!=='' ? [['done','Done, encrypt text']] : [];
+  const flip = flipAvailable() ? [['flip','Flip camera']] : [];
+  if(mode==='photo') return captured
+      ? [['retake','Retake'],['done','Done, encrypt photo']]
+      : [...flip, ['snap','Take photo']];
+  if(mode==='video'){
+    if(captured)   return [['retake','Retake'],['done','Done, encrypt video']];
+    if(recording)  return [['stop','Stop recording']];
+    if(finalizing) return [];
+    return [...flip, ['start','Start video recording']];
+  }
+  if(mode==='mic'){
+    if(captured)   return [['retake','Retake'],['done','Done, encrypt audio']];
+    if(recording)  return [['stop','Stop recording']];
+    if(finalizing) return [];
+    return [['start','Start audio recording']];
+  }
+  return [];
+}
+let lastA11yKey='';
+function maybeSyncA11y(){
+  const acts = currentActions();
+  const key = [mode, sealed, recording, finalizing, !!captured, acts.map(a=>a[0]).join(',')].join('|');
+  if(key === lastA11yKey) return;
+  lastA11yKey = key;
+  a11yActions.innerHTML='';
+  acts.forEach(([id,label])=>{
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=label; b.dataset.act=id;
+    b.addEventListener('click', ()=>handleHit(id));
+    a11yActions.appendChild(b);
+  });
+  [...a11yTabs.children].forEach(b=>{
+    b.setAttribute('aria-pressed', b.dataset.tab===mode ? 'true' : 'false');
+  });
+  announceState();
+}
+function announceState(){
+  let msg;
+  if(sealed) msg='Encrypted. Copy to clipboard button available.';
+  else if(recording) msg='Recording.';
+  else if(finalizing) msg='Finalizing recording.';
+  else if(captured) msg=(mode==='photo'?'Photo':mode==='video'?'Video':'Audio')+' captured. Done button available.';
+  else msg=({text:'Text mode. Type your note.',
+             photo:'Photo mode. Camera preview active.',
+             video:'Video mode. Camera preview active.',
+             mic:'Microphone mode. Ready to record.'})[mode] || '';
+  a11yStatus.textContent = msg;
+}
+
+/* ---------- stream / recorder lifecycle ---------- */
+function stopEverything(){
+  if(recorder && recorder.state !== 'inactive'){ try{recorder.stop();}catch(e){} }
+  recorder = null; chunks = []; recording = false; finalizing = false;
+  closeMicCtx();
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream = null; }
+  if(video){ video.srcObject = null; }
+}
+
+function setMode(m){
+  stopEverything();
+  captured = null;
+  textBuf = '';
+  sealed = false;
+  hideResult();
+  mode = m;
+  if(textInput){
+    if(m === 'text'){
+      textInput.value = '';
+      textInput.style.display = 'block';
+      // focus() here rides the tab-tap gesture, so mobile keyboards open
+      try{ textInput.focus({preventScroll:true}); }catch(e){ textInput.focus(); }
+    }else{
+      textInput.blur();
+      textInput.style.display = 'none';
+    }
+  }
+  if(m === 'photo' || m === 'video') openCamera(true);  // live preview (video only)
+}
+
+// Toggle selfie / rear camera. Re-acquires the live preview with the new facing.
+function flipCamera(){
+  facing = (facing === 'user') ? 'environment' : 'user';
+  if(flipAvailable()) openCamera(true);
+}
+// Flip is offered only when a camera preview is live and we're not mid-capture.
+function flipAvailable(){
+  return (mode === 'photo' || mode === 'video') &&
+         !!stream && !recording && !finalizing && !captured && !sealed;
+}
+
+async function openCamera(withVideo, withAudio){
+  try{
+    const constraints = withVideo
+      ? { video:{ facingMode: facing, width:{ideal:1280}, height:{ideal:720} }, audio: !!withAudio }
+      : { audio:true };
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    if(withVideo){
+      video.srcObject = stream;
+      await video.play().catch(()=>{});
+    }
+    return true;
+  }catch(err){
+    console.error(err);
+    stream = null;
+    flashError = 'Camera/mic access denied';
+    return false;
+  }
+}
+let flashError = '';
+
+/* ---------- capture actions ---------- */
+function snapPhoto(){
+  if(!stream || !video.videoWidth) return;
+  const off = document.createElement('canvas');
+  off.width = video.videoWidth; off.height = video.videoHeight;
+  off.getContext('2d').drawImage(video,0,0);
+  captured = { b64: off.toDataURL('image/jpeg', 0.9).split(',')[1], mime:'image/jpeg' };
+  // freeze: keep stream stopped so preview shows the frozen shot
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); }
+  frozenShot = off;
+}
+let frozenShot = null;
+
+async function startRecording(kind){ // kind: 'video' | 'mic'
+  const ok = kind === 'video' ? await openCamera(true, true) : await openCamera(false);
+  if(!ok) return;
+  const mime = kind === 'video'
+    ? pickMime(['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'])
+    : pickMime(['audio/webm;codecs=opus','audio/webm']);
+  chunks = [];
+  try{
+    recorder = mime ? new MediaRecorder(stream,{mimeType:mime}) : new MediaRecorder(stream);
+  }catch(e){ recorder = new MediaRecorder(stream); }
+
+  recorder.ondataavailable = e=>{ if(e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = ()=>{
+    // Label with what the recorder actually produced (Safari may emit mp4, not webm).
+    const raw = (recorder && recorder.mimeType) ? recorder.mimeType : (kind==='video'?'video/webm':'audio/webm');
+    const type = raw.split(';')[0];
+    const blob = new Blob(chunks, {type});
+    const fr = new FileReader();
+    fr.onload = ()=>{ captured = { b64: fr.result.split(',')[1], mime:type }; finalizing = false; };
+    fr.onerror = ()=>{ finalizing = false; flashError = 'Could not read recording'; };
+    fr.readAsDataURL(blob);                // in-memory; never written to disk
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    if(video) video.srcObject = null;
+    closeMicCtx();
+  };
+  recorder.start();
+  recording = true;
+}
+function pickMime(list){
+  for(const m of list){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; }
+  return '';
+}
+function stopRecording(){
+  if(recorder && recorder.state !== 'inactive'){ recorder.stop(); }
+  recording = false;
+  finalizing = true;   // brief gap while the Blob is read to base64
+}
+
+/* ==================================================================
+   DRAWING
+   ================================================================== */
+const TAB_H = 54;
+const PREV_TOP = TAB_H + 8;
+const PREV_BOT = H - 118;
+const CTRL_Y   = H - 60;   // control row centre
+
+function draw(){
+  hitRects = [];
+  ctx.clearRect(0,0,W,H);
+
+  // background
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H);
+
+  drawTabs();
+  drawPreview();
+  drawFlipButton();
+  drawControls();
+  drawRecIndicator();
+  maybeSyncA11y();
+
+  requestAnimationFrame(draw);
+}
+
+function drawFlipButton(){
+  if(!flipAvailable()) return;
+  const cx = 10 + (W-20) - 30, cy = PREV_TOP + 30, r = 21;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1.5; ctx.stroke();
+  ctx.fillStyle='#fff';
+  ctx.font='700 22px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('\u21BB', cx, cy+1);   // ↻ switch-camera glyph
+  ctx.restore();
+  hitRects.push({id:'flip', x:cx-r, y:cy-r, w:r*2, h:r*2});
+}
+
+function drawTabs(){
+  const tw = W / MODES.length;
+  ctx.save();
+  ctx.fillStyle = '#0d0d10';
+  ctx.fillRect(0,0,W,TAB_H);
+  ctx.font = '600 13px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  MODES.forEach((label,i)=>{
+    const x = i*tw, cx = x+tw/2;
+    const active = MODES[i].toLowerCase() === (mode==='text'?'text':mode);
+    if(active){
+      ctx.fillStyle = 'rgba(255,210,63,.14)';
+      ctx.fillRect(x+6,8,tw-12,TAB_H-16);
+    }
+    ctx.fillStyle = active ? '#ffd23f' : '#8a8a92';
+    ctx.fillText(label, cx, TAB_H/2);
+    hitRects.push({id:'tab:'+MODES[i].toLowerCase(), x, y:0, w:tw, h:TAB_H});
+  });
+  ctx.strokeStyle = '#1c1c20'; ctx.beginPath();
+  ctx.moveTo(0,TAB_H); ctx.lineTo(W,TAB_H); ctx.stroke();
+  ctx.restore();
+}
+
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function drawPreview(){
+  const x=10, y=PREV_TOP, w=W-20, h=PREV_BOT-PREV_TOP;
+  ctx.save();
+  roundRect(x,y,w,h,16); ctx.clip();
+  ctx.fillStyle = '#101014'; ctx.fillRect(x,y,w,h);
+
+  if(sealed){
+    centerMsg('Encrypted \u2713  —  copy the payload below', x, y, w, h, '#34c759');
+    ctx.restore();
+    return;
+  }
+
+  if(mode==='text'){
+    drawTextPreview(x,y,w,h);
+  }else if(mode==='photo'){
+    if(frozenShot){
+      drawCover(frozenShot,x,y,w,h);
+    }else if(stream && video.videoWidth){
+      drawCover(video,x,y,w,h);
+    }else{
+      centerMsg('Opening camera…',x,y,w,h);
+    }
+  }else if(mode==='video'){
+    if(captured){ centerMsg('Recording ready',x,y,w,h,'#34c759'); }
+    else if(stream && video.videoWidth){ drawCover(video,x,y,w,h); }
+    else{ centerMsg('Press START to record video',x,y,w,h); }
+  }else if(mode==='mic'){
+    drawMicPreview(x,y,w,h);
+  }
+
+  if(flashError){
+    ctx.fillStyle='rgba(255,59,48,.92)';
+    ctx.fillRect(x,y+h-40,w,40);
+    ctx.fillStyle='#fff'; ctx.font='600 14px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(flashError, x+w/2, y+h-20);
+  }
+  ctx.restore();
+}
+
+function drawCover(src,x,y,w,h){
+  const sw = src.videoWidth||src.width, sh = src.videoHeight||src.height;
+  if(!sw||!sh) return;
+  const sr = sw/sh, dr = w/h;
+  let dw,dh,dx,dy;
+  if(sr>dr){ dh=h; dw=h*sr; dx=x-(dw-w)/2; dy=y; }
+  else{ dw=w; dh=w/sr; dx=x; dy=y-(dh-h)/2; }
+  ctx.drawImage(src,dx,dy,dw,dh);
+}
+
+function centerMsg(msg,x,y,w,h,color){
+  ctx.fillStyle = color||'#7a7a82';
+  ctx.font='500 15px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(msg, x+w/2, y+h/2);
+}
+
+function drawTextPreview(x,y,w,h){
+  const pad=16, maxW=w-pad*2;
+  ctx.fillStyle='#e9e9ee';
+  ctx.font='16px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  const lineH=24;
+  let cy=y+pad;
+  const paragraphs = textBuf.split('\n');
+  let lastLineW = 0, lastLineY = cy;
+  paragraphs.forEach((para,pi)=>{
+    const words = para.split(' ');
+    let line='';
+    const flush=()=>{ ctx.fillText(line, x+pad, cy); lastLineW=ctx.measureText(line).width; lastLineY=cy; cy+=lineH; };
+    if(para===''){ lastLineW=0; lastLineY=cy; cy+=lineH; }
+    for(let i=0;i<words.length;i++){
+      const test = line ? line+' '+words[i] : words[i];
+      if(ctx.measureText(test).width>maxW && line){ flush(); line=words[i]; }
+      else line=test;
+    }
+    if(line!=='' || para==='') { if(line!=='' ) flush(); }
+  });
+  // blinking cursor after last char
+  if(Math.floor(Date.now()/500)%2===0){
+    const cxp = x+pad+lastLineW+2;
+    ctx.fillStyle='#ffd23f';
+    ctx.fillRect(cxp, lastLineY+2, 2, 20);
+  }
+  if(textBuf===''){
+    ctx.fillStyle='#55555c';
+    ctx.fillText('Type your note…', x+pad, y+pad);
+  }
+}
+
+let micLevels = new Array(48).fill(0);
+let micAnalyser=null, micData=null, micCtx=null;
+function drawMicPreview(x,y,w,h){
+  centerMsg(recording?'':'Press START to record audio',x,y,w,h);
+  // simple waveform bars while recording
+  if(recording && stream){
+    if(!micAnalyser){
+      try{
+        micCtx=new (window.AudioContext||window.webkitAudioContext)();
+        const src=micCtx.createMediaStreamSource(stream);
+        micAnalyser=micCtx.createAnalyser(); micAnalyser.fftSize=128;
+        micData=new Uint8Array(micAnalyser.frequencyBinCount);
+        src.connect(micAnalyser);
+      }catch(e){}
+    }
+    if(micAnalyser){ micAnalyser.getByteFrequencyData(micData); }
+    const bars=40, bw=(w-32)/bars, base=y+h/2;
+    for(let i=0;i<bars;i++){
+      const v = micData ? (micData[i]||0)/255 : Math.random()*0.3;
+      const bh = 6+v*(h*0.35);
+      ctx.fillStyle='#ffd23f';
+      ctx.fillRect(x+16+i*bw, base-bh/2, bw*0.6, bh);
+    }
+  }else{
+    closeMicCtx();
+  }
+  if(captured){ centerMsg('Recording ready',x,y,w,h,'#34c759'); }
+}
+function closeMicCtx(){
+  if(micCtx){ try{ micCtx.close(); }catch(e){} micCtx=null; }
+  micAnalyser=null; micData=null;
+}
+
+/* ---------- control buttons ---------- */
+function pill(id,label,cx,cy,w,h,fill,textColor){
+  const x=cx-w/2, y=cy-h/2;
+  roundRect(x,y,w,h,h/2);
+  ctx.fillStyle=fill; ctx.fill();
+  ctx.fillStyle=textColor||'#111';
+  ctx.font='800 15px -apple-system,Segoe UI,Roboto,sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label,cx,cy+1);
+  hitRects.push({id,x,y,w,h});
+}
+function shutter(id,cx,cy){
+  ctx.beginPath(); ctx.arc(cx,cy,34,0,Math.PI*2);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,26,0,Math.PI*2);
+  ctx.fillStyle='#fff'; ctx.fill();
+  hitRects.push({id,x:cx-38,y:cy-38,w:76,h:76});
+}
+
+function drawControls(){
+  const midX=W/2;
+  if(sealed){
+    pill('new','New',midX,CTRL_Y,140,48,'#2a2a30','#fff');
+    return;
+  }
+  if(mode==='text'){
+    if(textBuf.trim()!==''){ pill('done','Done',midX,CTRL_Y,140,48,'#34c759','#062b12'); }
+    else{ ghost('Type to begin',midX,CTRL_Y); }
+  }
+  else if(mode==='photo'){
+    if(captured){
+      pill('retake','Retake',midX-80,CTRL_Y,120,46,'#2a2a30','#fff');
+      pill('done','Done',midX+80,CTRL_Y,120,46,'#34c759','#062b12');
+    }else{
+      shutter('snap',midX,CTRL_Y);
+      label('SNAP',midX,CTRL_Y+52);
+    }
+  }
+  else if(mode==='video'){
+    if(captured){
+      pill('retake','Retake',midX-80,CTRL_Y,120,46,'#2a2a30','#fff');
+      pill('done','Done',midX+80,CTRL_Y,120,46,'#34c759','#062b12');
+    }else if(recording){
+      pill('stop','STOP',midX,CTRL_Y,150,52,'#ff3b30','#fff');
+    }else if(finalizing){
+      ghost('Finalizing…',midX,CTRL_Y);
+    }else{
+      pill('start','START',midX,CTRL_Y,150,52,'#ffd23f','#111');
+    }
+  }
+  else if(mode==='mic'){
+    if(captured){
+      pill('retake','Retake',midX-80,CTRL_Y,120,46,'#2a2a30','#fff');
+      pill('done','Done',midX+80,CTRL_Y,120,46,'#34c759','#062b12');
+    }else if(recording){
+      pill('stop','STOP',midX,CTRL_Y,150,52,'#ff3b30','#fff');
+    }else if(finalizing){
+      ghost('Finalizing…',midX,CTRL_Y);
+    }else{
+      pill('start','START',midX,CTRL_Y,150,52,'#ffd23f','#111');
+    }
+  }
+}
+function label(t,cx,cy){
+  ctx.fillStyle='#8a8a92'; ctx.font='700 11px sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(t,cx,cy);
+}
+function ghost(t,cx,cy){
+  ctx.fillStyle='#55555c'; ctx.font='600 14px sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(t,cx,cy);
+}
+
+function drawRecIndicator(){
+  if(!recording) return;
+  const on = Math.floor(Date.now()/500)%2===0;
+  const x=W-96, y=PREV_TOP+14;
+  if(on){
+    ctx.fillStyle='#ff3b30';
+    ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle='#ff3b30'; ctx.font='800 14px sans-serif';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('REC', x+14, y+1);
+}
+
+/* ==================================================================
+   INPUT
+   ================================================================== */
+function onCanvasClick(e){
+  const r = cv.getBoundingClientRect();
+  const scaleX = cv.width / r.width, scaleY = cv.height / r.height;
+  const px = (e.clientX - r.left)*scaleX;
+  const py = (e.clientY - r.top)*scaleY;
+  flashError = '';
+  // iterate from last drawn (topmost) to first
+  for(let i=hitRects.length-1;i>=0;i--){
+    const b=hitRects[i];
+    if(px>=b.x && px<=b.x+b.w && py>=b.y && py<=b.y+b.h){
+      handleHit(b.id); return;
+    }
+  }
+}
+
+function handleHit(id){
+  if(id.startsWith('tab:')){
+    const t=id.slice(4);
+    frozenShot=null;
+    setMode(t);
+    return;
+  }
+  switch(id){
+    case 'snap':   snapPhoto(); break;
+    case 'start':  startRecording(mode==='video'?'video':'mic'); break;
+    case 'stop':   stopRecording(); break;
+    case 'retake':
+      captured=null; frozenShot=null; hideResult();
+      if(mode==='photo' || mode==='video') openCamera(true);
+      break;
+    case 'done':   onDone(); break;
+    case 'new':    setMode(mode); break;
+    case 'flip':   flipCamera(); break;
+  }
+}
+
+/* ==================================================================
+   DONE  ->  seal to the public key (this app cannot decrypt)
+   ================================================================== */
+function hideResult(){ resultEl.style.display='none'; }
+
+async function onDone(){
+  const pubB64 = getCookie(COOKIE);
+  if(!pubB64 || typeof nacl === 'undefined'){ flashError = 'No public key / crypto not ready'; return; }
+  // Gather the plaintext base64. mime goes into the hidden field2 only (never
+  // shown, not in the payload) — the decryptor sniffs the type from the bytes.
+  let b64, mime;
+  if(mode==='text'){
+    if(textBuf.trim()==='') return;
+    b64 = utf8ToB64(textBuf);
+    mime = 'text/plain';
+  }else{
+    if(!captured || !captured.b64){ flashError='Nothing captured yet'; return; }
+    b64 = captured.b64;
+    mime = captured.mime;
+  }
+  field2.value = mime;   // field1 is only ever written as ciphertext (below)
+
+  try{
+    const encrypted = await sealEncrypt(b64);
+    b64 = null;                 // drop the local plaintext reference
+    field1.value = encrypted;   // hidden field holds ciphertext only
+    wipePlaintext();            // clear captured buffers / text / preview bitmap
+    sealed = true;
+    showResult(encrypted);
+  }catch(err){
+    flashError = 'Encrypt failed: '+(err.message||err);
+    console.error(err);
+  }
+}
+
+// Drop every in-memory copy of the plaintext once it's sealed. Note: JS strings
+// can't be zeroed in place, so this releases references for GC; the raw byte
+// buffers we control (the encoded message) are overwritten with zeros in sealEncrypt.
+function wipePlaintext(){
+  if(captured){ captured.b64 = null; captured = null; }
+  textBuf = '';
+  if(textInput){ textInput.value = ''; textInput.blur(); textInput.style.display = 'none'; }
+  frozenShot = null;          // release the captured photo pixels
+}
+
+// NaCl box (Curve25519 + XSalsa20-Poly1305) sealed to the stored public key.
+// A fresh ephemeral keypair is used per message; its public half travels with
+// the ciphertext. Only the SECRET key — re-derived from the cat's name in the
+// separate decryptor — can open it. This app cannot.
+async function sealEncrypt(base64Str){
+  const recipientPub = b64ToU8(getCookie(COOKIE));
+  const eph   = nacl.box.keyPair();
+  const nonce = nacl.randomBytes(24);
+  const msg   = new TextEncoder().encode(base64Str);
+  const boxed = nacl.box(msg, nonce, recipientPub, eph.secretKey);
+  eph.secretKey.fill(0);   // drop the only local value that could re-open this
+  return abToB64(eph.publicKey) + ':' + abToB64(nonce) + ':' + abToB64(boxed);
+}
+
+function showResult(cipher){
+  cipherEl.value = cipher;
+  resultEl.style.display='block';
+  resultEl.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/* ==================================================================
+   BOOT — runs last, so every top-level declaration above is initialized.
+   Only skip setup if the cookie holds a real 32-byte public key (older
+   builds stored other things there, so validate rather than trust).
+   ================================================================== */
+function hasValidPubKey(){
+  const c = getCookie(COOKIE);
+  if(!c) return false;
+  try{ return b64ToU8(c).length === 32; }catch(e){ return false; }
+}
+if(hasValidPubKey()){
+  startApp();
+}else{
+  setupEl.style.display = 'block';
+  setTimeout(()=>pwEl.focus(), 50);
+}
+</script>
+</body>
+</html>
