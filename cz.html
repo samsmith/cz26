@@ -110,40 +110,144 @@
   .sr-only button:focus{
     position:static;width:auto;height:auto;clip:auto;
   }
+
+  /* ---------- top-right Help / FAQ concertina ----------
+     Pinned to the top-right of the screen. The toggle button expands
+     (concertinas) a definition list of questions/answers beneath it.
+     Closed via the same toggle, the × in the header, or Escape. */
+  #help{
+    position:fixed; top:12px; right:12px; z-index:60;
+    width:min(320px, calc(100vw - 24px));
+    display:flex; flex-direction:column; align-items:flex-end;
+  }
+  #helpToggle{
+    background:var(--panel); border:1px solid var(--stroke);
+    color:var(--muted); border-radius:999px;
+    padding:7px 13px; font-size:13px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:7px;
+  }
+  #helpToggle:hover{ color:var(--text); border-color:#3a3a42; }
+  #helpToggle:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  #help.open #helpToggle{ color:var(--text); border-color:var(--accent); }
+  #helpToggle .q{
+    display:inline-grid; place-items:center; width:16px; height:16px;
+    border:1px solid currentColor; border-radius:50%;
+    font-size:11px; font-weight:700; line-height:1;
+  }
+
+  /* The concertina itself: animate grid rows 0fr -> 1fr so the panel
+     expands to its natural height with no hard-coded max. */
+  #helpPanel{
+    width:100%; margin-top:8px;
+    display:grid; grid-template-rows:0fr;
+    transition:grid-template-rows .26s ease;
+  }
+  #help.open #helpPanel{ grid-template-rows:1fr; }
+  .help-inner{
+    overflow:hidden;
+    background:var(--panel); border:1px solid var(--stroke);
+    border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  #help.open .help-inner{ overflow:auto; max-height:70vh; }
+  /* Collapsed: take it out of the tab order / AT so it isn't reachable. */
+  #help:not(.open) .help-inner{ visibility:hidden; }
+
+  .help-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px; border-bottom:1px solid var(--stroke);
+    position:sticky; top:0; background:var(--panel);
+  }
+  .help-head span{ font-size:14px; font-weight:600; color:var(--text); }
+  #helpClose{
+    background:transparent; border:none; color:var(--muted);
+    font-size:22px; line-height:1; cursor:pointer; padding:0 4px;
+  }
+  #helpClose:hover{ color:var(--text); }
+  #helpClose:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  #helpPanel dl{ margin:0; padding:6px 14px 14px; }
+  #helpPanel dt{
+    color:var(--text); font-weight:600; font-size:14px;
+    padding:12px 0 2px; border-top:1px solid var(--stroke);
+  }
+  #helpPanel dt:first-child{ border-top:none; }
+  #helpPanel dd{
+    margin:0; color:var(--muted); font-size:13px; line-height:1.5;
+    padding-bottom:2px;
+  }
+  @media (prefers-reduced-motion:reduce){
+    #helpPanel{ transition:none; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
+
+  <!-- Top-right Help / FAQ. Pinned to the screen corner; the toggle
+       concertinas the list below open and closed. Replace the placeholder
+       dt/dd pairs with your real, reviewed answers before shipping. -->
+  <div id="help">
+    <button id="helpToggle" type="button" aria-expanded="false" aria-controls="helpPanel">
+      <span class="q">?</span><span>Help</span>
+    </button>
+    <div id="helpPanel">
+      <div class="help-inner">
+        <div class="help-head">
+          <span>Help &amp; FAQ</span>
+          <button id="helpClose" type="button" aria-label="Close help">&times;</button>
+        </div>
+        <dl>
+          <dt>Placeholder question one?</dt>
+          <dd>Placeholder answer. Replace this with your real content.</dd>
+
+          <dt>Placeholder question two?</dt>
+          <dd>Placeholder answer. Replace this with your real content.</dd>
+
+          <dt>Placeholder question three?</dt>
+          <dd>Placeholder answer. Replace this with your real content.</dd>
+
+          <dt>Placeholder question four?</dt>
+          <dd>Placeholder answer. Replace this with your real content.</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
 
   <!-- SETUP -->
 <!-- Drop everything below into your page. The component renders itself into #setup. -->
 <div id="setup"></div>
 
 <style>
+  /* Setup component — themed to match the dark camera app so the whole
+     tool reads as one product and every line of guidance stays legible.
+     (Previously used dark ink colours on the dark panel, which made the
+     heading, description and progress text effectively invisible.) */
   #setup {
     max-width: 26rem;
-    font-family: system-ui, sans-serif;
-    color: #2b2b33;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--text);
   }
   #setup h2 {
     font-size: 1.25rem;
     margin: 0 0 0.5rem;
+    color: var(--text);
   }
   #setup p.setup-desc {
     font-size: 0.9rem;
     line-height: 1.5;
-    color: #5a5a66;
+    color: var(--muted);
     margin: 0 0 1rem;
   }
   #setup p.setup-desc a {
-    color: #4a6fa5;
+    color: var(--accent);
     font-weight: 600;
   }
   #setup .setup-progress {
     font-size: 0.75rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: #8a8a96;
+    color: var(--muted);
     margin: 0 0 0.75rem;
   }
   #setup input,
@@ -151,11 +255,14 @@
     box-sizing: border-box;
     padding: 0.6rem 0.7rem;
     font-size: 1rem;
-    border: 1px solid #c9c9d4;
-    border-radius: 6px;
-    background: #fff;
+    border: 1px solid var(--stroke);
+    border-radius: 8px;
+    background: #0e0e10;
+    color: var(--text);
     margin-bottom: 0.5rem;
   }
+  #setup select option { color: var(--text); background: #0e0e10; }
+  #setup input::placeholder { color: #6a6a72; }
   #setup input {
     display: block;
     width: 100%;
@@ -169,12 +276,13 @@
   }
   #setup input:focus,
   #setup select:focus {
-    outline: 2px solid #4a6fa5;
-    outline-offset: 1px;
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(255,210,63,.25);
   }
   #setup .setup-or {
     font-size: 0.85rem;
-    color: #8a8a96;
+    color: var(--muted);
     margin: 0.25rem 0 0.4rem;
   }
   #setup .setup-places {
@@ -184,30 +292,34 @@
     margin-bottom: 0.5rem;
   }
   #setup button.setup-place {
-    background: #eef1f6;
-    color: #2b2b33;
-    border: 1px solid #c9c9d4;
+    background: #1c1c22;
+    color: var(--text);
+    border: 1px solid var(--stroke);
     border-radius: 999px;
     padding: 0.35rem 0.8rem;
     font-size: 0.85rem;
+    cursor: pointer;
   }
+  #setup button.setup-place:hover { border-color: var(--accent); }
   #setup .setup-error {
     font-size: 0.85rem;
-    color: #a53a3a;
+    color: #ff6b60;
     min-height: 1.2em;
     margin: 0 0 0.5rem;
   }
-  #setup button {
-    padding: 0.55rem 1.4rem;
+  #setup button.setup-next {
+    padding: 0.7rem 1.4rem;
+    width: 100%;
     font-size: 1rem;
+    font-weight: 800;
     border: none;
-    border-radius: 6px;
-    background: #4a6fa5;
-    color: #fff;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #111;
     cursor: pointer;
   }
-  #setup button:disabled {
-    background: #b8c4d6;
+  #setup button.setup-next:disabled {
+    opacity: .55;
     cursor: default;
   }
 </style>
@@ -355,8 +467,8 @@
       }
     },
     {
-      title: "A passphrase known only to people who make you feel safe",
-      desc: "You can always change this in future.",
+      title: "A passphrase that makes you feel safe",
+      desc: "Something others don't know - maybe with punctuation to make it hard to guess.",
       fields: function () {
         return '<input id="setup-pass" type="text" autocomplete="off" placeholder="Enter your passphrase">';
       },
@@ -1135,7 +1247,6 @@ if(hasValidPubKey()){
   setupEl.style.display = 'block';
 }
 // Place list, exposed for the setup component's "or pick from this list"
-// picker. (Previously a bare object literal here, which was a SyntaxError.)
 window.PLACES_LIST = {
     "Aachen Cathedral": "lat=50.7747468537&long=6.083919968",
     "Acropolis, Athens": "lat=37.97087&long=23.72618",
@@ -1414,5 +1525,36 @@ window.PLACES_LIST = {
     "Yellowstone National Park": "lat=44.46056&long=-110.82778",
     "Yosemite National Park": "lat=37.74611111&long=-119.5966667"
 };</script>
+
+<!-- Help / FAQ concertina wiring. Toggles the top-right panel open and
+     closed; also closes on the × button and on Escape. -->
+<script>
+(function(){
+  var help   = document.getElementById('help');
+  var toggle = document.getElementById('helpToggle');
+  var close  = document.getElementById('helpClose');
+  if(!help || !toggle) return;
+
+  function setOpen(open){
+    help.classList.toggle('open', open);
+    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+  toggle.addEventListener('click', function(){
+    setOpen(!help.classList.contains('open'));
+  });
+  if(close){
+    close.addEventListener('click', function(){
+      setOpen(false);
+      toggle.focus();
+    });
+  }
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && help.classList.contains('open')){
+      setOpen(false);
+      toggle.focus();
+    }
+  });
+})();
+</script>
 </body>
 </html>
