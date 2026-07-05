@@ -172,6 +172,25 @@
     outline: 2px solid #4a6fa5;
     outline-offset: 1px;
   }
+  #setup .setup-or {
+    font-size: 0.85rem;
+    color: #8a8a96;
+    margin: 0.25rem 0 0.4rem;
+  }
+  #setup .setup-places {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
+  #setup button.setup-place {
+    background: #eef1f6;
+    color: #2b2b33;
+    border: 1px solid #c9c9d4;
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.85rem;
+  }
   #setup .setup-error {
     font-size: 0.85rem;
     color: #a53a3a;
@@ -265,6 +284,18 @@
     return null;
   }
 
+  // Picks n distinct place names at random from window.PLACES_LIST.
+  // The list lives in a later script block, so it must be read lazily
+  // (at render time) rather than when this script first runs.
+  function pickRandomPlaces(n) {
+    var names = Object.keys(window.PLACES_LIST || {});
+    for (var i = names.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = names[i]; names[i] = names[j]; names[j] = t;
+    }
+    return names.slice(0, n);
+  }
+
   // --- screens -----------------------------------------------------------
   // Each screen supplies its own fields (as HTML) and a getValue() that
   // returns either { value: <string to hash> } or { error: <message> }.
@@ -293,7 +324,26 @@
       title: "A place you feel most safe",
       desc: 'Think of somewhere you could go in your head where you would feel safest. It can be far away, it can be real, or imaginary from a story \u2014 somewhere you feel safe. Open <a href="https://maps.google.com" target="_blank" rel="noopener">Google Maps</a> or <a href="https://maps.apple.com" target="_blank" rel="noopener">Apple Maps</a> and steer (don\u0027t search) to that place, then tap Share \u2192 Copy, and paste the result into this box.',
       fields: function () {
-        return '<input id="setup-link" type="text" autocomplete="off" placeholder="Paste your maps link here">';
+        return '<input id="setup-link" type="text" autocomplete="off" placeholder="Paste your maps link here">' +
+          '<p class="setup-or">or pick from this list:</p>' +
+          '<div class="setup-places"></div>';
+      },
+      // Place names contain quotes and non-ASCII characters, so the buttons
+      // are built with DOM APIs (textContent) instead of an HTML string.
+      afterRender: function (root) {
+        var wrap = root.querySelector(".setup-places");
+        if (!wrap) return;
+        pickRandomPlaces(7).forEach(function (name) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "setup-place";
+          b.textContent = name;
+          b.addEventListener("click", function () {
+            document.getElementById("setup-link").value =
+              "https://location/?" + window.PLACES_LIST[name];
+          });
+          wrap.appendChild(b);
+        });
       },
       getValue: function () {
         var link = document.getElementById("setup-link").value.trim();
@@ -328,13 +378,13 @@
       '<p class="setup-desc"></p>' +
       s.fields() +
       '<p class="setup-error" aria-live="polite"></p>' +
-      "<button>" + (current === screens.length - 1 ? "Finish" : "Next") + "</button>";
+      '<button class="setup-next">' + (current === screens.length - 1 ? "Finish" : "Next") + "</button>";
 
     container.querySelector("h2").textContent = s.title;
     // desc strings are static, developer-authored HTML (needed for the maps links)
     container.querySelector(".setup-desc").innerHTML = s.desc;
 
-    var button = container.querySelector("button");
+    var button = container.querySelector("button.setup-next");
 
     function submit() {
       var result = s.getValue();
@@ -361,6 +411,8 @@
         if (e.key === "Enter") submit();
       });
     });
+
+    if (typeof s.afterRender === "function") s.afterRender(container);
   }
 
   function finish() {
@@ -1079,8 +1131,9 @@ if(hasValidPubKey()){
   // The #setup component renders itself on load; just make sure it's visible.
   setupEl.style.display = 'block';
 }
-{
-  "places_list": {
+// Place list, exposed for the setup component's "or pick from this list"
+// picker. (Previously a bare object literal here, which was a SyntaxError.)
+window.PLACES_LIST = {
     "Aachen Cathedral": "lat=50.7747468537&long=6.083919968",
     "Acropolis, Athens": "lat=37.97087&long=23.72618",
     "Ajanta Caves": "lat=20.553111&long=75.70025",
@@ -1376,7 +1429,6 @@ if(hasValidPubKey()){
     "Xanthos-Letoon": "lat=36.335&long=29.32028",
     "Yellowstone National Park": "lat=44.46056&long=-110.82778",
     "Yosemite National Park": "lat=37.74611111&long=-119.5966667"
-  }
-}</script>
+};</script>
 </body>
 </html>
