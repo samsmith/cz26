@@ -332,6 +332,18 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
     cursor: pointer;
   }
   #setup button.setup-place:hover { border-color: var(--accent); }
+  #setup .setup-intro {
+    margin: 0 0 1.1rem;
+  }
+  #setup .setup-intro p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0 0 0.8rem;
+  }
+  #setup .setup-intro p:last-child {
+    margin-bottom: 0;
+  }
   #setup .setup-shoulder {
     font-size: 0.85rem;
     line-height: 1.45;
@@ -526,6 +538,23 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
     'is the key. Worth finding a spot where nobody you\u2019d rather not is reading ' +
     'over your shoulder. Either shoulder.</p>';
 
+  // A landing page rather than an immediate question. Someone opening this for
+  // the first time may not be having a calm day, and the shoulder warning is
+  // only useful before they've started typing answers into a screen.
+  var INTRO_HTML =
+    '<h2>Hello</h2>' +
+    '<div class="setup-intro">' +
+      '<p>This is a quiet place for the things you\u2019d rather no one else read. ' +
+      'Nothing leaves your phone on its own \u2014 if anything ever goes anywhere, ' +
+      'it\u2019s because you took it there yourself.</p>' +
+      '<p>Setting up is three small questions and takes about a minute. ' +
+      'They aren\u2019t a test, and nobody marks them. All that matters is that ' +
+      'the answers are yours, and that you\u2019ll still know them later.</p>' +
+      '<p>There\u2019s no hurry. You can close this and come back whenever you like.</p>' +
+    '</div>' +
+    SHOULDER_NOTE +
+    '<button class="setup-next" id="setup-begin">Begin</button>';
+
   var screens = [
     {
       title: "A day and time you feel most safe",
@@ -551,7 +580,7 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
       desc: 'Think of somewhere you could go in your head where you would feel safest. It can be far away, it can be real, or imaginary from a story \u2014 somewhere you feel safe. Open <a href="https://maps.google.com" target="_blank" rel="noopener">Google Maps</a> or <a href="https://maps.apple.com" target="_blank" rel="noopener">Apple Maps</a> and steer (don\u0027t search) to that place, then tap Share \u2192 Copy, and paste the result into this box.',
       fields: function () {
         return '<input id="setup-link" type="text" autocomplete="off" placeholder="Paste your maps link here">' +
-          '<p class="setup-or">or pick from this list:</p>' +
+          '<p class="setup-or">or pick from this semi-random famous list:</p>' +
           '<div class="setup-places"></div>';
       },
       // Place names contain quotes and non-ASCII characters, so the buttons
@@ -644,13 +673,19 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
 
   var current = 0;
 
+  function renderIntro() {
+    container.innerHTML = INTRO_HTML;
+    var begin = container.querySelector("#setup-begin");
+    begin.addEventListener("click", render);
+    begin.focus();
+  }
+
   function render() {
     var s = screens[current];
     container.innerHTML =
       '<p class="setup-progress">Step ' + (current + 1) + " of " + screens.length + "</p>" +
       "<h2></h2>" +
       '<p class="setup-desc"></p>' +
-      (current === 0 ? SHOULDER_NOTE : "") +
       s.fields() +
       '<p class="setup-error" aria-live="polite"></p>' +
       '<button class="setup-next">' + (current === screens.length - 1 ? "Finish" : "Next") + "</button>";
@@ -708,7 +743,7 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
 
   sha256(todayYMD()).then(function (h) {
     hashed = h;   // hashed = sha256(YYYY-MM-DD)
-    render();
+    renderIntro();
   });
 })();
 </script>
