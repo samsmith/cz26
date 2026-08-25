@@ -26,6 +26,13 @@ function setCookie(name,value,days){
   document.cookie = name+'='+encodeURIComponent(value)+
     '; max-age='+(days*24*3600)+'; path=/; SameSite=Lax';
 }
+// Empties the stored public key and expires the cookie in one go: max-age=0
+// tells the browser to drop it, so we don't leave "NAME=" sitting in the jar
+// as a trace that something was once set up here.
+function clearPubKey(){
+  setCookie(COOKIE, '', 0);
+  return !hasValidPubKey();
+}
 function bufToHex(buf){
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }

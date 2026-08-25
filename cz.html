@@ -166,6 +166,16 @@
   #helpClose:hover{ color:var(--text); }
   #helpClose:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 
+  #helpPanel button.help-danger{
+    background:transparent; color:#ff6b60;
+    border:1px solid #ff6b60; border-radius:8px;
+    padding:7px 12px; font-size:13px; cursor:pointer;
+  }
+  #helpPanel button.help-danger:hover{ background:rgba(255,107,96,.1); }
+  #helpPanel button.help-danger.armed{ background:#ff6b60; color:#111; font-weight:600; }
+  #helpPanel button.help-danger:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  #helpPanel .help-note{ margin-left:8px; font-size:12px; color:var(--muted); }
+
   #helpPanel dl{ margin:0; padding:6px 14px 14px; }
   #helpPanel dt{
     color:var(--text); font-weight:600; font-size:14px;
@@ -206,15 +216,12 @@
 
 
 <dt>Can I forget or change my secrets later, or delete them now?</dt>
-<dd><p>Just press this button <button onpress="clearPubKey()">Forget the secrets</button>.</p>
-<p>If you want to have a new secret, you can reload the page</p>
-<script>function clearPubKey(){
-  setCookie(COOKIE, '', 0);
-  return !hasValidPubKey();
-}</script>
+<dd><p>Yes. This forgets the key held on this phone and takes you back to the three questions, so you can set new answers or simply leave it unset.</p>
+<p>It doesn't reach anything you've already copied out &mdash; that stays wherever you put it. But treat anything you encrypted before as closed for good: a fresh setup builds a fresh key, and the old one isn't kept anywhere.</p>
+<p><button id="resetKey" class="help-danger" type="button">Forget the secrets</button><span id="resetNote" class="help-note" role="status" aria-live="polite"></span></p>
 
 <dt>Where does my message go after I press Done? is anything saved on this phone?</dt>
-<dd>You can copy the encrypted text to the clipboard, and then paste it somewhere you can get it in future. that could be a random tumblr you've created, it could be a google doc that you have access to, you could email it to yourself. We on't do anything with it for you</dd>
+<dd>You can copy the encrypted text to the clipboard, and then paste it somewhere you can get it in future. that could be a random tumblr you've created, it could be a google doc that you have access to, you could email it to yourself. We won't do anything with it for you</dd>
 
 <dt>What should I do if someone asks me what this app is?</dt>
 <dd>It's for protecting your secrets, in a way that the universe will end before they can guess the keys. And if you don't want to share with someone, just give a different safe place, or a line from a poem instead of your safe phrase, and there is no way for anyone to tell. </dd>
@@ -325,6 +332,34 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
     cursor: pointer;
   }
   #setup button.setup-place:hover { border-color: var(--accent); }
+  #setup .setup-shoulder {
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--muted);
+    border-left: 2px solid var(--accent);
+    background: rgba(255, 210, 63, .06);
+    padding: 0.55rem 0.7rem;
+    border-radius: 0 6px 6px 0;
+    margin: 0 0 0.9rem;
+  }
+  #setup button.setup-generate {
+    background: #1c1c22;
+    color: var(--text);
+    border: 1px solid var(--stroke);
+    border-radius: 999px;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+  }
+  #setup button.setup-generate:hover { border-color: var(--accent); }
+  #setup .setup-hint {
+    font-size: 0.8rem;
+    color: var(--muted);
+    min-height: 1.2em;
+    margin: -0.3rem 0 0.6rem;
+  }
+  #setup .setup-hint.ok { color: var(--accent); }
   #setup .setup-error {
     font-size: 0.85rem;
     color: #ff6b60;
@@ -378,6 +413,17 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
   // --- helpers -----------------------------------------------------------
 
   var DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+  // The day/hour and place answers are worth about 15 bits between them, and
+  // rather less against anyone who knows you. The passphrase carries the rest,
+  // so we ask for enough words to matter. Eight ordinary words is roughly 70
+  // bits once you allow for the fact that people don't pick words uniformly.
+  var TARGET_WORDS = 8;
+
+  function countWords(s) {
+    var t = String(s).trim();
+    return t ? t.split(/\s+/).length : 0;
+  }
 
   // Seven words drawn uniformly from 7776 is 7 * log2(7776) = 90.5 bits, and
   // unlike a typed phrase that figure is exact — there's no human bias to
@@ -539,9 +585,54 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
     },
     {
       title: "A passphrase that makes you feel safe",
-      desc: "Something others don't know - maybe with punctuation to make it hard to guess.",
+      desc: "This is the part that does the protecting \u2014 the two answers before it help far less than they look like they do. Aim for <strong>eight words or more</strong>. Something nobody else knows, and not a line from anything published.",
       fields: function () {
-        return '<input id="setup-pass" type="text" autocomplete="off" placeholder="Enter your passphrase">';
+        return '<input id="setup-pass" type="text" autocomplete="off" placeholder="Enter your passphrase">' +
+          '<p class="setup-or">or let the page pick for you:</p>' +
+          '<button type="button" class="setup-generate" id="setup-gen">Generate ' + GEN_WORDS + ' random words</button>' +
+          '<p class="setup-hint" id="setup-pass-hint"></p>';
+      },
+      afterRender: function (root) {
+        var input = root.querySelector("#setup-pass");
+        var hint = root.querySelector("#setup-pass-hint");
+        var gen = root.querySelector("#setup-gen");
+        var wasGenerated = false;
+
+        function update() {
+          var n = countWords(input.value);
+          if (wasGenerated) {
+            hint.textContent = GEN_WORDS + " random words \u2014 about 90 bits. Learn it before you rely on it.";
+            hint.classList.add("ok");
+            return;
+          }
+          if (n === 0) {
+            hint.textContent = TARGET_WORDS + " words or more.";
+          } else {
+            hint.textContent = n + (n === 1 ? " word" : " words") +
+              (n >= TARGET_WORDS ? " \u2014 that'll do it." : " \u2014 keep going, aim for " + TARGET_WORDS + ".");
+          }
+          hint.classList.toggle("ok", n >= TARGET_WORDS);
+        }
+
+        // Setting .value in code doesn't fire "input", so the flag survives
+        // until the user edits the phrase themselves.
+        input.addEventListener("input", function () { wasGenerated = false; update(); });
+
+        gen.addEventListener("click", function () {
+          var phrase = generatePassphrase();
+          if (!phrase) {
+            hint.classList.remove("ok");
+            hint.textContent = "Word list didn't load \u2014 type your own instead.";
+            return;
+          }
+          input.value = phrase;
+          wasGenerated = true;
+          update();
+          input.focus();
+          input.setSelectionRange(phrase.length, phrase.length);
+        });
+
+        update();
       },
       getValue: function () {
         var pass = document.getElementById("setup-pass").value.trim();
@@ -1626,6 +1717,41 @@ window.PLACES_LIST = {
       toggle.focus();
     }
   });
+
+  // Two taps to wipe, matching the copy button's confirm-then-revert pattern.
+  // Irreversible, so it shouldn't go off on a mis-tap inside a scrolling panel.
+  var reset = document.getElementById('resetKey');
+  var note  = document.getElementById('resetNote');
+  if(reset){
+    var armed = false, timer = null;
+    function disarm(){
+      armed = false;
+      clearTimeout(timer);
+      reset.textContent = 'Forget the secrets';
+      reset.classList.remove('armed');
+      if(note) note.textContent = '';
+    }
+    reset.addEventListener('click', function(){
+      if(!armed){
+        armed = true;
+        reset.textContent = 'Tap again to confirm';
+        reset.classList.add('armed');
+        if(note) note.textContent = 'This cannot be undone.';
+        timer = setTimeout(disarm, 5000);
+        return;
+      }
+      clearTimeout(timer);
+      if(!clearPubKey()){
+        disarm();
+        if(note) note.textContent = "Couldn't clear it \u2014 cookies may be blocked.";
+        return;
+      }
+      // Reload rather than re-render: it drops every in-memory copy of the
+      // digest and anything captured but not yet sealed, then the startup
+      // check finds no key and shows setup again.
+      location.reload();
+    });
+  }
 })();
 </script>
 </body>
