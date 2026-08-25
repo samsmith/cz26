@@ -205,8 +205,13 @@
 <dd>All three are folded together into one key, and every piece has to be exactly right or none of it fits. But strength isn't the reason there are three of them &mdash; almost all of that comes from your passphrase. They're three because three unverifiable answers give you room to be plausibly wrong under pressure. See <em>What if someone makes me open it?</em> below.</dd>
 
 
-<dt>Can I change my secrets later, or delete them now?</dt>
-<dd>just press this button --:  XXX implement this to set cookie to random</dd>
+<dt>Can I forget or change my secrets later, or delete them now?</dt>
+<dd><p>Just press this button <button onpress="clearPubKey()">Forget the secrets</button>.</p>
+<p>If you want to have a new secret, you can reload the page</p>
+<script>function clearPubKey(){
+  setCookie(COOKIE, '', 0);
+  return !hasValidPubKey();
+}</script>
 
 <dt>Where does my message go after I press Done? is anything saved on this phone?</dt>
 <dd>You can copy the encrypted text to the clipboard, and then paste it somewhere you can get it in future. that could be a random tumblr you've created, it could be a google doc that you have access to, you could email it to yourself. We on't do anything with it for you</dd>
