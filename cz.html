@@ -227,10 +227,13 @@
 <dd>It's for protecting your secrets, in a way that the universe will end before they can guess the keys. And if you don't want to share with someone, just give a different safe place, or a line from a poem instead of your safe phrase, and there is no way for anyone to tell. </dd>
  
 <dt>What if someone makes me open it?</dt>
-<dd>This is what the three questions are actually for. They aren't there to make the key harder to guess &mdash; a long passphrase does that on its own, and does it far better. They're there so that <em>I can't get in</em> is a believable thing for you to say.<br><br>Nobody can check your answers. There's no record anywhere of which day you feel safest, or which place, so there's nothing to catch you out against. And you don't have to invent a story and hold it under pressure: give the right place on a slightly wrong day and the app just doesn't open, exactly as it would if you'd honestly misremembered. You only have to be a little bit wrong.</dd>
+<dd>This is what the three questions are actually for (there's also a fourth hidden question which only matters when you come to decrypt). They aren't there to make the key harder to guess &mdash; a long passphrase does that on its own, and does it far better. They're there so that <em>I must have forgotten one but don't know which</em> is a believable thing for you to say.<br><br>Nobody can check your answers. There's no record anywhere of which day you feel safest, or which place, so there's nothing to catch you out against. And you don't have to invent a story and hold it under pressure: give the right place on a slightly wrong day and the app just doesn't open, exactly as it would if you'd honestly misremembered. You only have to be a little bit wrong.</dd>
  
 <dt>How far does that actually protect me?</dt>
-<dd>Worth knowing the edges before you lean on it.<br><br>A wrong answer gives you a failure, not a decoy &mdash; there's nothing in here that opens up to show someone a harmless version. So this protects what you wrote; it doesn't get you out of the room, and someone who doesn't believe you can keep asking.<br><br>It also doesn't hide the app. What's private is what you wrote, not the fact that you wrote something.<br><br>And the person most likely to pressure you is often the person most likely to know your safe day and your safe place. If that's your situation, pick answers they wouldn't land on, even if they feel less true to you. The questions are prompts, not a test &mdash; nothing checks whether your answer is sincere.</dd>
+<dd>
+This protects what you wrote; and someone who doesn't believe you can't remember which of the locations you used can keep asking, but you have an endless supply of plausible but wrong answers.
+<br><br>It also doesn't hide the app. What's private is what you wrote, not the fact that you wrote something.
+<br><br>And the person most likely to pressure you is often the person most likely to know your safe day and your safe place. If that's your situation, pick one or more answers they wouldn't expect, even if they feel slightly less true to you. The questions are prompts, not a test &mdash; nothing checks whether your answer is sincere. You might feel safe at a friend's house, but pick the location of the shop near their house that you'd sometimes go to. The possibilites are endless and merely knowing you might have picked one helps protects you.</dd>
         </dl>
       </div>
     </div>
@@ -1040,7 +1043,8 @@ async function startRecording(kind){ // kind: 'video' | 'mic'
     const blob = new Blob(chunks, {type});
     const fr = new FileReader();
     fr.onload = ()=>{ captured = { b64: fr.result.split(',')[1], mime:type }; finalizing = false; };
-    fr.onerror = ()=>{ finalizing = false; flashError = 'Could not read recording'; };
+    fr.on
+    error = ()=>{ finalizing = false; flashError = 'Could not read recording'; };
     fr.readAsDataURL(blob);                // in-memory; never written to disk
     if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
     if(video) video.srcObject = null;
