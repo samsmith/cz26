@@ -144,12 +144,6 @@ function hasValidPubKey(){
   try{ return b64ToU8(c).length === 32; }catch(e){ return false; }
 }
 
-@@
- function hasValidPubKey(){
-   const c = getCookie(COOKIE);
-   if(!c) return false;
-   try{ return b64ToU8(c).length === 32; }catch(e){ return false; }
- }
 
 /* ==================================================================
    SEAL · a 5x5 mirrored mark derived from the stored PUBLIC key.
