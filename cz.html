@@ -134,6 +134,16 @@
     border:1px solid currentColor; border-radius:50%;
     font-size:11px; font-weight:700; line-height:1;
   }
+  /* The mark must look the same in light and dark, so its background is
+     fixed rather than inherited: blank cells are part of the pattern. */
+  #helpToggle{ max-width:100%; }
+  #seal{
+    display:inline-flex; flex:0 0 auto; width:22px; height:22px;
+    border-radius:3px; overflow:hidden; background:#efece4;
+  }
+  #seal:empty{ display:none; }
+  /* Drop it rather than let it crowd or wrap the toggle. */
+  @media (max-width:360px), (max-height:460px){ #seal{ display:none; } }
 
   /* The concertina itself: animate grid rows 0fr -> 1fr so the panel
      expands to its natural height with no hard-coded max. */
@@ -199,7 +209,7 @@
        dt/dd pairs with your real, reviewed answers before shipping. -->
   <div id="help">
     <button id="helpToggle" type="button" aria-expanded="false" aria-controls="helpPanel">
-      <span class="q">?</span><span>Help</span>
+      <span class="q">?</span><span>Help</span><span id="seal" aria-hidden="true"></span>
     </button>
     <div id="helpPanel">
       <div class="help-inner">
@@ -634,7 +644,7 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
         function update() {
           var n = countWords(input.value);
           if (wasGenerated) {
-            hint.textContent = GEN_WORDS + " random words &mdash; learn it before you rely on it.";
+            hint.textContent = GEN_WORDS + " random words - remember it before you rely on it.";
             hint.classList.add("ok");
             return;
           }
@@ -1792,6 +1802,73 @@ window.PLACES_LIST = {
       location.reload();
     });
   }
+})();
+</script>
+
+<!-- Seal. A 5x5 mirrored mark derived from the stored PUBLIC key and shown
+     beside the Help button. Same key, same mark, always; a different key
+     makes a different mark, which is the only signal this app can give that
+     someone else set it up. Self-contained: wraps startApp and adds its own
+     listeners rather than editing either. -->
+<script>
+(function(){
+  var host = document.getElementById('seal');
+  if (!host) return;
+
+  var PAL = ['#1f3a93','#d97706','#0d9488','#b02a7a',
+             '#c9a227','#3f3f46','#9a3412','#7c9fd4'];
+
+  // Fifteen independent cells (three columns, mirrored to five). Each takes
+  // one digest byte: the low three bits pick a colour, bits 3-4 leave the
+  // cell blank a quarter of the time. At 22px shapes would not survive, so
+  // blanks carry the part of the signal that does not depend on colour.
+  function build(d){
+    var g = '', i = 0;
+    for (var row = 0; row < 5; row++){
+      for (var col = 0; col < 3; col++){
+        var v = d[i++];
+        if ((v & 24) === 0) continue;
+        var f = PAL[v & 7];
+        g += '<rect x="'+(col*12)+'" y="'+(row*12)+'" width="12" height="12" fill="'+f+'"/>';
+        if (col < 2){
+          g += '<rect x="'+((4-col)*12)+'" y="'+(row*12)+'" width="12" height="12" fill="'+f+'"/>';
+        }
+      }
+    }
+    return '<svg viewBox="0 0 60 60" width="22" height="22" ' +
+           'xmlns="http://www.w3.org/2000/svg" focusable="false">' + g + '</svg>';
+  }
+
+  // Read from the cookie every time, never cached. A cached mark would keep
+  // showing the old colours at exactly the moment it matters.
+  async function render(){
+    try {
+      var c = getCookie(COOKIE);
+      if (!c) { host.innerHTML = ''; return; }
+      var key = b64ToU8(c);
+      if (key.length !== 32) { host.innerHTML = ''; return; }
+      var d = new Uint8Array(await crypto.subtle.digest('SHA-256', key));
+      host.innerHTML = build(d);
+    } catch (e) {
+      host.innerHTML = '';
+    }
+  }
+
+  if (typeof startApp === 'function'){
+    var real = startApp;
+    startApp = function(){ var r = real(); render(); return r; };
+  }
+
+  var toggle = document.getElementById('helpToggle');
+  if (toggle) toggle.addEventListener('click', function(){ render(); });
+
+  // The swap this is meant to catch happens while the phone is out of your
+  // hands, so re-read the cookie whenever the page comes back into view.
+  document.addEventListener('visibilitychange', function(){
+    if (!document.hidden) render();
+  });
+
+  render();
 })();
 </script>
 </body>

@@ -90,8 +90,8 @@ async function deriveSeed(pw){
   const res = await argon2.hash({
     pass: shaHex,
     salt: 'CAREZONE2SALT01' + localYMD(),
-    time: 32,           // iterations
-    mem: 16 * 1024,     // 16 MB in KiB
+    time: 15,           // iterations
+    mem: 64 * 1024,     // 16 MB in KiB
     hashLen: 32,        // 32-byte output
     parallelism: 1,
     type: argon2.ArgonType.Argon2id
@@ -142,4 +142,57 @@ function hasValidPubKey(){
   const c = getCookie(COOKIE);
   if(!c) return false;
   try{ return b64ToU8(c).length === 32; }catch(e){ return false; }
+}
+
+@@
+ function hasValidPubKey(){
+   const c = getCookie(COOKIE);
+   if(!c) return false;
+   try{ return b64ToU8(c).length === 32; }catch(e){ return false; }
+ }
+
+/* ==================================================================
+   SEAL · a 5x5 mirrored mark derived from the stored PUBLIC key.
+   Same key -> same mark, always. A different key -> a different mark,
+   which is the only signal this app can give that someone else set it
+   up. Read from the cookie on every call, never cached: a cached mark
+   would keep showing the old colours at exactly the moment it matters.
+   ================================================================== */
+const SEAL_PAL = ['#1f3a93','#d97706','#0d9488','#b02a7a',
+                  '#c9a227','#3f3f46','#9a3412','#7c9fd4'];
+
+// 15 independent cells (3 columns, mirrored to 5). Each cell takes one
+// digest byte: low 3 bits pick the colour, bits 3-4 blank it a quarter
+// of the time. Blanks are the one part of the mark that doesn't rely on
+// colour vision, so they carry more weight than their share suggests.
+async function sealSvg(){
+  const c = getCookie(COOKIE);
+  if(!c) return '';
+  let key;
+  try{ key = b64ToU8(c); }catch(e){ return ''; }
+  if(key.length !== 32) return '';
+  const d = new Uint8Array(await crypto.subtle.digest('SHA-256', key));
+  let g = '', i = 0;
+  for(let row=0; row<5; row++){
+    for(let col=0; col<3; col++){
+      const v = d[i++];
+      if((v & 24) === 0) continue;
+      const fill = SEAL_PAL[v & 7];
+      g += '<rect x="'+(col*12)+'" y="'+(row*12)+'" width="12" height="12" fill="'+fill+'"/>';
+      if(col < 2){
+        g += '<rect x="'+((4-col)*12)+'" y="'+(row*12)+'" width="12" height="12" fill="'+fill+'"/>';
+      }
+    }
+  }
+  return '<svg viewBox="0 0 60 60" width="22" height="22" '+
+         'xmlns="http://www.w3.org/2000/svg" focusable="false">'+g+'</svg>';
+}
+
+// Paints into #seal if it's there. Silent on every failure path: a broken
+// mark must not become a broken Help button.
+async function renderSeal(){
+  const host = document.getElementById('seal');
+  if(!host) return;
+  try{ host.innerHTML = await sealSvg(); }
+  catch(e){ host.innerHTML = ''; }
 }
