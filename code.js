@@ -25,7 +25,6 @@ function getCookie(name){
 function setCookie(name,value,days){
   document.cookie = name+'='+encodeURIComponent(value)+
     '; max-age='+(days*24*3600)+'; path=/; SameSite=Lax';
-  setupDate= 0;
 }
 // Absolute expiry on a shared calendar boundary: day 0 of the month six months
 // on, i.e. the last day of the fifth. Everyone who sets up in the same month

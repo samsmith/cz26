@@ -135,7 +135,7 @@ function normaliseDate(raw){
   if (!m) return null;
   var mo = Number(m[2]), da = Number(m[3]);
   if (mo < 1 || mo > 12 || da < 1 || da > 31) return null;
-  return m[1] + String(mo).padStart(2,"0") + String(da).padStart(2,"0");
+  return m[1] + "-" + String(mo).padStart(2,"0") + "-" + String(da).padStart(2,"0");
 }
 
 function readFields(){
