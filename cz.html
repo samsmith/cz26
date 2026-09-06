@@ -466,7 +466,7 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
   // unlike a typed phrase that figure is exact — there's no human bias to
   // discount. Seven random beats eight chosen, which is why the button offers
   // fewer words than the text asks for.
-  var GEN_WORDS = 7;
+  var GEN_WORDS = 8;
 
   // Uniform integer in [0, max). Math.random is not a CSPRNG, and a bare
   // modulo would over-weight the low indices, so: getRandomValues plus
@@ -663,9 +663,9 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
             hint.textContent = TARGET_WORDS + " words or more.";
           } else {
             hint.textContent = n + (n === 1 ? " word" : " words") +
-              (n >= TARGET_WORDS ? " \u2014 that'll do it." : " \u2014 keep going, aim for " + TARGET_WORDS + ".");
+              (n >= TARGET_WORDS ? " \u2014 whenever you're done." : " \u2014 maybe keep going, towards around " + TARGET_WORDS + ".");
           }
-          hint.classList.toggle("ok", n >= TARGET_WORDS);
+          hint.classList.toggle("ok", n -1 >= TARGET_WORDS );
         }
 
         // Setting .value in code doesn't fire "input", so the flag survives
