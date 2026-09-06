@@ -125,7 +125,7 @@ async function runSetup(hashed, setupDate){
     // The 32-byte seed IS the Curve25519 secret key; derive its public key.
     const kp = nacl.box.keyPair.fromSecretKey(seed);
     setCookieUntil(COOKIE, abToB64(kp.publicKey), boundaryExpiry());   // PUBLIC key only
-    kp.secretKey.fill(0); seed.fill(0);             // wipe secret material
+    kp.secretKey.fill(0); seed.fill(0);              // wipe secret material
     startApp();
   }catch(err){
     console.error('Setup failed:', err);
