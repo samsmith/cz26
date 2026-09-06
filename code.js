@@ -25,6 +25,19 @@ function getCookie(name){
 function setCookie(name,value,days){
   document.cookie = name+'='+encodeURIComponent(value)+
     '; max-age='+(days*24*3600)+'; path=/; SameSite=Lax';
+  setupDate= 0;
+}
+// Absolute expiry on a shared calendar boundary: day 0 of the month six months
+// on, i.e. the last day of the fifth. Everyone who sets up in the same month
+// lands on the same instant, so the jar narrows the setup date to a month
+// rather than pinning it to the second the way max-age from now does.
+function boundaryExpiry(d){
+  d = d || new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+6, 0));
+}
+function setCookieUntil(name,value,when){
+  document.cookie = name+'='+encodeURIComponent(value)+
+    '; expires='+when.toUTCString()+'; path=/; SameSite=Lax';
 }
 // Empties the stored public key and expires the cookie in one go: max-age=0
 // tells the browser to drop it, so we don't leave "NAME=" sitting in the jar
@@ -111,7 +124,7 @@ async function runSetup(hashed, setupDate){
     const seed = await deriveSeed(hashed, setupDate);
     // The 32-byte seed IS the Curve25519 secret key; derive its public key.
     const kp = nacl.box.keyPair.fromSecretKey(seed);
-    setCookie(COOKIE, abToB64(kp.publicKey), 30);   // PUBLIC key only
+    setCookieUntil(COOKIE, abToB64(kp.publicKey), boundaryExpiry());   // PUBLIC key only
     kp.secretKey.fill(0); seed.fill(0);             // wipe secret material
     startApp();
   }catch(err){
