@@ -357,6 +357,15 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
     cursor: pointer;
   }
   #setup button.setup-place:hover { border-color: var(--accent); }
+  #setup button.setup-again {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-decoration: underline;
+    padding: 0.35rem 0.2rem;
+    cursor: pointer;
+  }
   #setup .setup-intro {
     margin: 0 0 1.1rem;
   }
@@ -613,17 +622,29 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
       afterRender: function (root) {
         var wrap = root.querySelector(".setup-places");
         if (!wrap) return;
-        pickRandomPlaces(7).forEach(function (name) {
-          var b = document.createElement("button");
-          b.type = "button";
-          b.className = "setup-place";
-          b.textContent = name;
-          b.addEventListener("click", function () {
-            document.getElementById("setup-link").value =
-              "https://location/?" + window.PLACES_LIST[name];
+        var again = document.createElement("button");
+        again.type = "button";
+        again.className = "setup-again";
+        again.textContent = "others";
+        // Presentation only. Which names are offered has no bearing on the
+        // key; only the coordinates behind the one you tap ever get hashed.
+        function fill() {
+          wrap.textContent = "";
+          pickRandomPlaces(7).forEach(function (name) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.className = "setup-place";
+            b.textContent = name;
+            b.addEventListener("click", function () {
+              document.getElementById("setup-link").value =
+                "https://location/?" + window.PLACES_LIST[name];
+            });
+            wrap.appendChild(b);
           });
-          wrap.appendChild(b);
-        });
+          wrap.appendChild(again);
+        }
+        again.addEventListener("click", fill);
+        fill();
       },
       getValue: function () {
         var link = document.getElementById("setup-link").value.trim();
