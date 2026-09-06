@@ -163,8 +163,8 @@ async function secretKey(f){
   var res = await argon2.hash({
     pass: shaHex,
     salt: "CAREZONE2SALT01" + f.date.replace(/-/g,""),
-    time: 32,
-    mem: 16 * 1024,
+    time: 15,
+    mem: 64 * 1024,
     hashLen: 32,
     parallelism: 1,
     type: argon2.ArgonType.Argon2id

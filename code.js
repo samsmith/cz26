@@ -80,7 +80,7 @@ function localYMD(d){
   return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`;
 }
 
-async function deriveSeed(pw){
+async function deriveSeed(pw, ymd){
   // SHA-256 the input string, then stretch with Argon2id.
   // Salt = base salt + local YYYYMMDD, so the same name yields a different
   // keypair on different local dates (deterministic within a given date).
@@ -89,7 +89,7 @@ async function deriveSeed(pw){
   if(typeof argon2 === 'undefined') await loadScript(ARGON_CDN, ARGON_SRI);
   const res = await argon2.hash({
     pass: shaHex,
-    salt: 'CAREZONE2SALT01' + localYMD(),
+    salt: 'CAREZONE2SALT01' + ymd.replace(/-/g,''),
     time: 15,           // iterations
     mem: 64 * 1024,     // 16 MB in KiB
     hashLen: 32,        // 32-byte output
@@ -102,13 +102,13 @@ async function deriveSeed(pw){
 // Called with the final hex digest produced by the #setup component once the
 // user has answered all three screens. Derives the keypair from that digest
 // (in place of the old cat's-name input) and starts the app.
-async function runSetup(hashed){
+async function runSetup(hashed, setupDate){
   if(!hashed){ console.error('runSetup: no digest received from setup'); return; }
   try{
     if(typeof nacl === 'undefined'){
       throw new Error('crypto library not loaded — check your connection or CDN access');
     }
-    const seed = await deriveSeed(hashed);
+    const seed = await deriveSeed(hashed, setupDate);
     // The 32-byte seed IS the Curve25519 secret key; derive its public key.
     const kp = nacl.box.keyPair.fromSecretKey(seed);
     setCookie(COOKIE, abToB64(kp.publicKey), 30);   // PUBLIC key only

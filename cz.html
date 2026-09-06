@@ -766,7 +766,9 @@ window.EFF_WORDLIST = "abacus abdomen abdominal abide abiding ability ablaze abl
 
   // --- start session -----------------------------------------------------
 
-  sha256(todayYMD()).then(function (h) {
+
+  setupDate = todayYMD();
+  sha256(setupDate).then(function (h) {
     hashed = h;   // hashed = sha256(YYYY-MM-DD)
     renderIntro();
   });
